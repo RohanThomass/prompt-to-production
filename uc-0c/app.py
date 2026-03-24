@@ -20,34 +20,30 @@ ANOMALY_PATH = "anomaly_report.txt"
 
 # ── Skill 1: CSV Ingestion with Schema Validation ────────────────────────────
 def load_budget_data(path: str) -> list[dict]:
-    """Load ward_budget.csv and validate required columns."""
-    required_columns = {"ward", "category", "year", "amount"}
+    """Load CSV and adapt custom schema to expected format."""
     rows = []
     skipped = 0
 
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
 
-        # Normalise column names to lowercase stripped
-        fieldnames = [c.strip().lower() for c in reader.fieldnames or []]
-        missing = required_columns - set(fieldnames)
-        if missing:
-            raise ValueError(f"[SCHEMA ERROR] Missing columns: {missing}")
-
-        print(f"[INFO] Columns detected: {fieldnames}")
+        print(f"[INFO] Columns detected: {reader.fieldnames}")
         print(f"[INFO] Loading data from: {path}")
 
-        for i, raw_row in enumerate(reader, start=2):  # row 1 = header
-            row = {k.strip().lower(): v.strip() for k, v in raw_row.items()}
+        for i, row in enumerate(reader, start=2):
             try:
+                # Extract year from period (e.g., 2024-01 → 2024)
+                year = int(row["period"].split("-")[0])
+
                 rows.append({
-                    "ward":     row["ward"],
-                    "category": row["category"],
-                    "year":     int(row["year"]),
-                    "amount":   float(row["amount"]),
+                    "ward":     row["ward"].strip(),
+                    "category": row["category"].strip(),
+                    "year":     year,
+                    "amount":   float(row["actual_spend"]),
                 })
-            except (ValueError, KeyError) as e:
-                print(f"[WARN] Skipping row {i} due to parse error: {e} — {row}")
+
+            except Exception as e:
+                print(f"[WARN] Skipping row {i}: {e}")
                 skipped += 1
 
     print(f"[INFO] Loaded {len(rows)} rows. Skipped {skipped} invalid rows.")
